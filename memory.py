@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 
 MEMORY_FILE = "aether_memory.json"
-MAX_MEMORIES = 50  # garde les 50 derniers souvenirs
+MAX_MEMORIES = 100
 
 def load_memory() -> list:
     if os.path.exists(MEMORY_FILE):

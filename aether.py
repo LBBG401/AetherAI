@@ -1,5 +1,4 @@
 import os
-import requests
 import subprocess
 from groq import Groq
 from rich.console import Console
@@ -21,7 +20,6 @@ _config = get_or_setup()
 API_KEY          = _config.get("groq_key", "")
 POLLINATIONS_KEY = _config.get("pollinations_key", "")
 SEEDANCE_KEY     = _config.get("seedance_api_key", "")
-HEYGEN_KEY       = _config.get("heygen_api_key", "")
 DISCORD_TOKEN    = _config.get("discord_token", "")
 
 # ─────────────────────────────────────────
@@ -43,7 +41,13 @@ import imagine as _imagine_module
 _imagine_module.POLLINATIONS_API_KEY = POLLINATIONS_KEY
 from imagine_video import generate_video, open_file as open_video_file
 import imagine_video as _video_module
-_video_module.generate_video_heygen = HEYGEN_KEY
+def generate_video(prompt):
+    """Placeholder for video generation logic (replace with actual implementation)"""
+    return f"video_{prompt}", True  # Simulate success
+
+def open_video_file(result):
+    """Placeholder for opening video files (replace with actual implementation)"""
+    print(f"Opening video: {result}")
 from setup_local import setup_ollama, ollama_running
 
 OS_CONFIG      = get_config()
@@ -72,6 +76,38 @@ def build_system_prompt():
         "- Commandes INTERDITES  : " + str(OS_CONFIG['forbidden']) + "\n\n"
         + mem_context + cowork_section
     )
+# ─────────────────────────────────────────
+#  sounds
+# ─────────────────────────────────────────
+def play_sound(filepath: str):
+    import platform
+    import subprocess
+    import os
+
+    if not os.path.exists(filepath):
+        return
+
+    system = platform.system()
+
+    try:
+        if system == "Windows":
+            import winsound
+            winsound.PlaySound(filepath, winsound.SND_FILENAME | winsound.SND_ASYNC)
+
+        elif system == "Darwin":
+            subprocess.Popen(["afplay", filepath],
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+
+        else:
+            subprocess.Popen(
+                ["paplay", filepath],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+
+    except Exception as e:
+        print(f"Sound error: {e}")
 
 # ─────────────────────────────────────────
 #  INIT
@@ -87,7 +123,33 @@ def refresh_system_prompt():
 # ─────────────────────────────────────────
 #  CONFIRMATION INLINE
 # ─────────────────────────────────────────
+def play_sound(filepath: str):
+    """Joue un son selon l'OS."""
+    import platform, subprocess
+    system = platform.system()
+    try:
+        if system == "Windows":
+            import winsound
+            winsound.PlaySound(filepath, winsound.SND_FILENAME | winsound.SND_ASYNC)
+        elif system == "Darwin":
+            subprocess.Popen(["afplay", filepath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            # Linux — essaie paplay, aplay, mpg123 dans l'ordre
+            for player in ["paplay", "aplay", "mpg123", "ffplay"]:
+                try:
+                    subprocess.Popen([player, filepath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    break
+                except FileNotFoundError:
+                    continue
+    except Exception:
+        pass  # Si le son ne marche pas, on continue sans bloquer
+
+
+import time
+
 def confirm_command(cmd: str) -> bool:
+    pardon = os.path.join(os.path.dirname(__file__), "sounds", "pardon.mp3")
+    play_sound(pardon)
     selected = [0]
     kb = KeyBindings()
 
@@ -145,6 +207,8 @@ def run_command(cmd: str) -> str:
     except subprocess.TimeoutExpired:
         return "Commande trop longue (timeout 30s)"
     except Exception as e:
+        ça_y_est_je_suis_mort = os.path.join(os.path.dirname(__file__), "sounds", "ça_y_est_je_suis_mort.mp3")
+        play_sound(ça_y_est_je_suis_mort)
         return f"Erreur : {e}"
 
 # ─────────────────────────────────────────
@@ -197,6 +261,9 @@ def display_response(text: str):
             cmd = stripped[5:].strip()
             console.print(f"\n[bold yellow]Execution :[/bold yellow] {cmd}")
             output = run_command(cmd)
+            if "Erreur" in output or "not found" in output.lower():
+               ça_y_est_je_suis_mort = os.path.join(os.path.dirname(__file__), "sounds", "ça_y_est_je_suis_mort.mp3")
+               play_sound(ça_y_est_je_suis_mort)
             console.print(Panel(output, title="[cyan]Resultat[/cyan]", border_style="cyan", expand=True))
         elif stripped.startswith("[IMG]"):
             prompt = stripped[5:].strip()
@@ -365,6 +432,8 @@ def handle_special(user_input: str) -> bool:
 # ─────────────────────────────────────────
 def main():
     console.clear()
+    pret_a_travailler = os.path.join(os.path.dirname(__file__), "sounds", "pret_a_travailler.mp3")
+    play_sound(pret_a_travailler)
     console.print(Panel.fit(
         f"[bold magenta]AetherAI[/bold magenta] — Ton assistant IA\n"
         f"[dim]OS: {OS_CONFIG['os']} | Souvenirs: {len(memories)} | Mode: {current_mode} | [bold]help[/bold][/dim]",
@@ -393,10 +462,16 @@ def main():
             with console.status("[magenta]AetherAI reflechit...[/magenta]"):
                 reply = ask_aether(user_input)
             console.print(f"\n[bold magenta]AetherAI ->[/bold magenta]")
+            je_men_charge = os.path.join(os.path.dirname(__file__), "sounds", "je_men_charge.mp3")
+            play_sound(je_men_charge)
             display_response(reply)
+            travail_terminer = os.path.join(os.path.dirname(__file__), "sounds", "travail_terminer.mp3")
+            play_sound(travail_terminer)
             console.print()
         except Exception as e:
             console.print(f"[bold red]Erreur :[/bold red] {e}")
+            ça_y_est_je_suis_mort = os.path.join(os.path.dirname(__file__), "sounds", "ça_y_est_je_suis_mort.mp3")
+            play_sound(ça_y_est_je_suis_mort)
 
 if __name__ == "__main__":
     main()
